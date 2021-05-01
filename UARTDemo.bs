@@ -2,20 +2,19 @@ package UARTDemo where
 
 import UART
 import GetPut
+import Connectable
 
 interface UARTDemo =
   tx :: Bit 1 {-# always_ready, always_enabled #-}
+  rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
 
 {-# verilog mkUARTDemo #-}
 mkUARTDemo :: Module UARTDemo
 mkUARTDemo = module
   uart <- mkUART 9600
 
-  i :: Reg (UInt 8) <- mkReg 0
-  rules
-    "put_demo": when True ==> do
-       i := (i + 1) % 26
-       uart.txData.put $ pack $ i + 65
+  mkConnection uart.txData uart.rxData
 
   interface
     tx = uart.tx
+    rx = uart.rx
