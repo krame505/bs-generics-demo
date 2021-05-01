@@ -1,0 +1,52 @@
+package UART where
+
+import GetPut
+import FIFOF
+
+interface UART =
+  txData :: Put (Bit 8)
+
+  tx :: Bit 1           {-# always_ready, always_enabled #-}
+  --rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
+
+clockFreq :: Integer
+clockFreq = 100000000
+
+data State = Ready | StartBit | DataBit (UInt 3)
+  deriving (Eq, Bits)
+
+mkUART :: Integer -> Module UART
+mkUART baud = module
+  let counts = clockFreq / baud - 1
+
+  txFIFO :: FIFOF (Bit 8) <- mkFIFOF
+  txState :: Reg State <- mkReg Ready
+  txCounter :: Reg (UInt 32) <- mkReg 0
+  txBit :: Reg (Bit 1) <- mkReg 1
+
+  rules
+    "begin_send": when txCounter == 0 && txState == Ready && txFIFO.notEmpty ==> do
+      txState := StartBit
+      txCounter := fromInteger counts
+      txBit := 0
+
+    "send": when txCounter == 0 && txState /= Ready ==> do
+      txCounter := fromInteger counts
+      case txState of
+        StartBit -> do
+          txState := DataBit 0
+          txBit := truncate txFIFO.first
+        DataBit 7 -> do
+          txState := Ready
+          txBit := 1
+          txFIFO.deq
+        DataBit i -> do
+          txState := DataBit (i + 1)
+          txBit := truncate (txFIFO.first >> (i + 1))
+
+    "update_counter": when txCounter > 0 ==>
+      txCounter := txCounter - 1
+
+  interface
+    txData = toPut txFIFO
+    tx = txBit
