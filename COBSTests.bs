@@ -4,10 +4,11 @@ import COBS
 import Vector
 import qualified List
 import GetPut
+import Connectable
 import CShow
 
-msg :: (Add n p m) => Vector n a -> (UInt (TLog (TAdd m 1)), Vector m a)
-msg v = (fromInteger $ valueOf n, v `append` newVector)
+msg :: (Add n p m) => Vector n (Bit 8) -> (UInt (TLog (TAdd m 1)), Vector m (Bit 8))
+msg v = (fromInteger $ valueOf n, v `append` replicate 0)
 
 {-# verilog sysCOBSTests #-}
 sysCOBSTests :: Module Empty
@@ -28,6 +29,9 @@ sysCOBSTests = module
   let n = 11
 
   enc :: COBSEncoder 260 <- mkCOBSEncoder
+  dec :: COBSDecoder 260 <- mkCOBSDecoder
+
+  enc.byte <-> dec.byte
 
   i <- mkReg 0
   j <- mkReg 0
@@ -37,9 +41,11 @@ sysCOBSTests = module
       i := i + 1
 
     when True ==> do
-      b <- enc.byte.get
-      if b == 0 then j := j + 1 else noAction
-      $display "%x" b
+      let m1 :: (UInt 9, Vector 260 (Bit 8)) = select testMsgs j
+      m2 <- dec.msg.get
+      if m1 == m2
+        then $display "Pass %d" j
+        else $display "Fail %d" j
+      j := j + 1
 
     when j >= n ==> $finish
-

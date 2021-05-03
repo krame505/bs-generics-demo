@@ -64,3 +64,57 @@ mkCOBSEncoder = module
   interface
     msg = toPut msgs
     byte = toGet bytes
+
+
+interface (COBSDecoder :: # -> *) n =
+  msg :: Get (UInt (TLog (TAdd 1 n)), Vector n (Bit 8))
+  byte :: Put (Bit 8)
+
+mkCOBSDecoder :: (Log (TAdd 1 n) sizeWidth) => Module (COBSDecoder n)
+mkCOBSDecoder = module
+  msgs :: FIFO (UInt sizeWidth, Vector n (Bit 8)) <- mkFIFO
+  bytes :: FIFO (Bit 8) <- mkFIFO
+
+  -- Index of the next result byte to be decoded
+  i :: Reg (UInt sizeWidth) <- mkReg 0
+  -- Distance to the next zero / overhead / end of message byte
+  j :: Reg (UInt 8) <- mkReg 0
+  -- Is the next zero / overhead / end of message byte an overhead byte?
+  isOverhead :: Reg Bool <- mkReg True
+  -- Vector of registers containing partially-decoded message
+  msg :: Vector n (Reg (Bit 8)) <- replicateM $ mkReg 0
+
+  rules
+    "next_msg": when bytes.first == 0 ==> do
+      -- $display "next_msg"
+      bytes.deq
+      msgs.enq (i, map readReg msg)
+      i := 0
+      j := 0
+      isOverhead := True
+      writeVReg msg $ replicate 0
+
+    "decode_overhead": when bytes.first /= 0 && j == 0 && isOverhead ==> do
+      -- $display "decode_overhead %x" bytes.first
+      j := unpack bytes.first - 1
+      isOverhead := bytes.first == 0xff
+      bytes.deq
+
+    "decode_zero": when bytes.first /= 0 && j == 0 && not isOverhead ==> do
+      -- $display "decode_zero %x" bytes.first
+      select msg i := 0
+      i := i + 1
+      j := if bytes.first == 0xff then 0xff else unpack bytes.first - 1
+      isOverhead := bytes.first == 0xff
+      bytes.deq
+
+    "decode_nonzero": when bytes.first /= 0 && j > 0 ==> do
+      -- $display "decode_nonzero %x" bytes.first
+      select msg i := bytes.first
+      i := i + 1
+      j := j - 1
+      bytes.deq
+
+  interface
+    msg = toGet msgs
+    byte = toPut bytes
