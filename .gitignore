@@ -2,10 +2,12 @@
 *.v
 *.bo
 *.ba
+*.c
+*.cxx
+*.h
+*.o
 *.so
 *.out
-model_*
-sys*
 *.cache/
 *.hw/
 *.runs/
