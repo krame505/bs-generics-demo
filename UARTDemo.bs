@@ -2,7 +2,6 @@ package UARTDemo where
 
 import UART
 import GetPut
-import Connectable
 
 interface UARTDemo =
   tx :: Bit 1 {-# always_ready, always_enabled #-}
@@ -13,7 +12,10 @@ mkUARTDemo :: Module UARTDemo
 mkUARTDemo = module
   uart <- mkUART 9600
 
-  mkConnection uart.txData uart.rxData
+  rules
+    "echo": when True ==> do
+       c <- uart.rxData.get
+       uart.txData.put $ c + 1
 
   interface
     tx = uart.tx
