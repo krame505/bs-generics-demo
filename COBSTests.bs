@@ -1,0 +1,45 @@
+package COBSTests where
+
+import COBS
+import Vector
+import qualified List
+import GetPut
+import CShow
+
+msg :: (Add n p m) => Vector n a -> (UInt (TLog (TAdd m 1)), Vector m a)
+msg v = (fromInteger $ valueOf n, v `append` newVector)
+
+{-# verilog sysCOBSTests #-}
+sysCOBSTests :: Module Empty
+sysCOBSTests = module
+  let testMsgs =
+        msg (0x00 :> nil) :>
+        msg (0x00 :> 0x00 :> nil) :>
+        msg (0x11 :> 0x22 :> 0x00 :> 0x33 :> nil) :>
+        msg (0x11 :> 0x22 :> 0x33 :> 0x44 :> nil) :>
+        msg (0x11 :> 0x00 :> 0x00 :> 0x00 :> nil) :>
+        msg (map (\ i -> fromInteger i + 1) (genVector :: Vector 254 Integer)) :>
+        msg (map fromInteger (genVector :: Vector 255 Integer)) :>
+        msg (map (\ i -> fromInteger i + 1) (genVector :: Vector 255 Integer)) :>
+        msg (map (\ i -> fromInteger i + 2) (genVector :: Vector 255 Integer)) :>
+        msg (map (\ i -> fromInteger i + 3) (genVector :: Vector 255 Integer)) :>
+        msg (map fromInteger (genVector :: Vector 256 Integer)) :>
+        nil
+  let n = 11
+
+  enc :: COBSEncoder 260 <- mkCOBSEncoder
+
+  i <- mkReg 0
+  j <- mkReg 0
+  rules
+    when i < n ==> do
+      enc.msg.put $ select testMsgs i
+      i := i + 1
+
+    when True ==> do
+      b <- enc.byte.get
+      if b == 0 then j := j + 1 else noAction
+      $display "%x" b
+
+    when j >= n ==> $finish
+
