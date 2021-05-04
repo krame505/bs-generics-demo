@@ -75,7 +75,7 @@ mkUART baud = module
             then rxFIFO.enq rxByte
             else noAction
           rxByte := 0
-          rxCounter := fromInteger bitCounts
+          rxCounter := fromInteger sampleCounts
 
     "update_rx_counter": when rxCounter > 0 ==>
       rxCounter := rxCounter - 1
