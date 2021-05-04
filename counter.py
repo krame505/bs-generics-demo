@@ -10,9 +10,7 @@ from cobs import cobs
 from _counter import ffi, lib
 
 class CounterClient:
-    def __init__(self, port, handleSum, handleProduct):
-        self._handleSum = handleSum
-        self._handleProduct = handleProduct
+    def __init__(self, port):
         self._state = ffi.new("CounterMsgs_state *")
         lib.init_CounterMsgs(self._state)
         self._stateMutex = threading.Lock()
@@ -47,59 +45,73 @@ class CounterClient:
                 self._stateMutex.acquire()
                 self._txReady.clear()
 
-            sumRes = ffi.new("Result_int16 *")
-            while lib.dequeue_CounterMsgs_sums(self._state, sumRes):
-                self._stateMutex.release()
-                self._handleSum(sumRes.id, sumRes.val)
-                self._stateMutex.acquire()
-
-            productRes = ffi.new("Result_int64 *")
-            while lib.dequeue_CounterMsgs_products(self._state, productRes):
-                self._stateMutex.release()
-                self._handleProduct(productRes.id, productRes.val)
-                self._stateMutex.acquire()
-
     def start(self):
         threading.Thread(target=self._run, daemon=True).start()
 
-    def sendCommand(self, command):
+    def putCommand(self, command):
         self._stateMutex.acquire()
         while not lib.enqueue_CounterMsgs_commands(self._state, command):
             self._stateMutex.release()
             self._txDone.wait()
             self._stateMutex.acquire()
             self._txDone.clear()
-            
+
         self._txReady.set()
         self._stateMutex.release()
 
+    def getSum(self):
+        res = ffi.new("Result_int16 *")
+        self._stateMutex.acquire()
+        hasRes = lib.dequeue_CounterMsgs_sums(self._state, res)
+        self._txReady.set()
+        self._stateMutex.release()
+        if hasRes:
+            return res
+
+    def getProduct(self):
+        res = ffi.new("Result_int64 *")
+        self._stateMutex.acquire()
+        hasRes = lib.dequeue_CounterMsgs_products(self._state, res)
+        self._txReady.set()
+        self._stateMutex.release()
+        if hasRes:
+            return res
+
     def sendNum(self, id, val):
-        self.sendCommand(ffi.new("Command *", {'tag': lib.Command_Num, 'contents': {'Num': {'id': id, 'val': val}}})[0])
+        self.putCommand(ffi.new("Command *", {'tag': lib.Command_Num, 'contents': {'Num': {'id': id, 'val': val}}})[0])
 
     def resetSum(self, val):
-        self.sendCommand(ffi.new("Command *", {'tag': lib.Command_ResetSum, 'contents': {'ResetSum': val}})[0])
+        self.putCommand(ffi.new("Command *", {'tag': lib.Command_ResetSum, 'contents': {'ResetSum': val}})[0])
 
     def resetProduct(self, val):
-        self.sendCommand(ffi.new("Command *", {'tag': lib.Command_ResetProduct, 'contents': {'ResetProduct': val}})[0])
+        self.putCommand(ffi.new("Command *", {'tag': lib.Command_ResetProduct, 'contents': {'ResetProduct': val}})[0])
 
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
         sys.exit("Expected serial port name")
 
-    expectedSums = {i for i in range(500)}
-    def printSum(id, val):
-        global expectedSums
-        expectedSums -= {id}
-        print("Sum", id, val)
-
-    expectedProducts = {i for i in range(500)}
-    def printProduct(id, val):
-        global expectedProducts
-        expectedProducts -= {id}
-        print("Product", id, val)
-
-    client = CounterClient(sys.argv[1], printSum, printProduct)
+    client = CounterClient(sys.argv[1])
     client.start()
+
+    def handler():
+        expectedSums = {i for i in range(500)}
+        expectedProducts = {i for i in range(500)}
+        while expectedSums or expectedProducts:
+            if res := client.getSum():
+                expectedSums -= {res.id}
+                print("Sum", res.id, res.val)
+            elif res := client.getProduct():
+                expectedProducts -= {res.id}
+                print("Product", res.id, res.val)
+            else:
+                if expectedSums:
+                   print("Waiting on sums", expectedSums)
+                if expectedProducts:
+                   print("Waiting on products", expectedProducts)
+            time.sleep(0.005)
+
+    handlerThread = threading.Thread(target=handler)
+    handlerThread.start()
 
     k = 0
     for i in range(5):
@@ -111,12 +123,4 @@ if __name__ == "__main__":
             client.sendNum(k, j)
             k += 1
 
-    while expectedSums or expectedProducts:
-        if expectedSums:
-            print("Waiting on sums", expectedSums)
-        if expectedProducts:
-            print("Waiting on products", expectedProducts)
-        time.sleep(0.05)
-    
-            
-
+    handlerThread.join()
