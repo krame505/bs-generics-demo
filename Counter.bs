@@ -14,7 +14,7 @@ type Id = Bit 16 -- Try changing the size (will need to update in CounterIface.b
 -- Try adding/reordering constructors
 data Command = Num { id :: Id; val :: Int 16; }
              | ResetSum (Int 16)
-             | ResetProduct (Int 32)
+             | ResetProduct (Int 64)
   deriving (Bits)
 
 struct Result a =
@@ -25,13 +25,13 @@ struct Result a =
 interface CounterMsgs =
   -- In order of highest to lowest urgency
   -- Try changing the order and FIFO sizes
-  commands :: Rx 128 16 Command
-  sums     :: Tx 128 2 (Result (Int 16))
-  products :: Tx 128 2 (Result (Int 32))
+  commands :: Rx 16 16 Command
+  sums     :: Tx 16 2 (Result (Int 16))
+  products :: Tx 16 2 (Result (Int 64))
 
 interface Counter =
-  txMsg :: Get (UInt 4, Vector 8 (Bit 8))
-  rxMsg :: Put (UInt 4, Vector 8 (Bit 8))
+  txMsg :: Get (UInt 4, Vector 12 (Bit 8))
+  rxMsg :: Put (UInt 4, Vector 12 (Bit 8))
 
 {-# verilog mkCounter #-}
 mkCounter :: Module Counter
@@ -40,7 +40,7 @@ mkCounter = module
   let msgs :: CounterMsgs = msgMgr.fifos
 
   sum :: Reg (Int 16) <- mkReg 0
-  product :: Reg (Int 32) <- mkReg 1
+  product :: Reg (Int 64) <- mkReg 1
 
   rules
     "handle_command": when True ==> do
@@ -73,9 +73,9 @@ mkTop :: Module Top
 mkTop = module
   writeCMsgDecls "counter" (_ :: CounterMsgs)
 
-  uart <- mkUART 9600
-  enc :: COBSEncoder 8 <- mkCOBSEncoder
-  dec :: COBSDecoder 8 <- mkCOBSDecoder
+  uart <- mkUART 115200
+  enc :: COBSEncoder 12 <- mkCOBSEncoder
+  dec :: COBSDecoder 12 <- mkCOBSDecoder
   ctr <- mkCounter
 
   uart.rxData <-> dec.byte

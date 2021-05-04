@@ -18,7 +18,7 @@ class CounterClient:
         self._stateMutex = threading.Lock()
         self._txReady = eventfd.EventFD()
         self._txDone = eventfd.EventFD()
-        self._ser = serial.Serial(port, 9600)
+        self._ser = serial.Serial(port, 115200)
 
     def _run(self):
         rxData = []
@@ -32,13 +32,15 @@ class CounterClient:
                 else:
                     rxData.append(byte)
 
-            txData = ffi.new("uint8_t[]", lib.size_tx_CounterMsgs)
-            txSize = lib.encode_CounterMsgs(self._state, txData)
+            txArray = ffi.new("uint8_t[]", lib.size_tx_CounterMsgs)
+            txSize = lib.encode_CounterMsgs(self._state, txArray)
             if txSize:
-                txData = bytes(txData)[0:txSize]
-                #print("Tx", txSize, txData)
-                self._ser.write(cobs.encode(txData) + b'\0')
-                self._txDone.set()
+                while txSize:
+                    txData = bytes(txArray)[0:txSize]
+                    #print("Tx", txSize, txData)
+                    self._ser.write(cobs.encode(txData) + b'\0')
+                    self._txDone.set()
+                    txSize = lib.encode_CounterMsgs(self._state, txArray)
             else:
                 self._stateMutex.release()
                 select.select([self._ser, self._txReady], [], [])
@@ -51,7 +53,7 @@ class CounterClient:
                 self._handleSum(sumRes.id, sumRes.val)
                 self._stateMutex.acquire()
 
-            productRes = ffi.new("Result_int32 *")
+            productRes = ffi.new("Result_int64 *")
             while lib.dequeue_CounterMsgs_products(self._state, productRes):
                 self._stateMutex.release()
                 self._handleProduct(productRes.id, productRes.val)
@@ -68,8 +70,8 @@ class CounterClient:
             self._stateMutex.acquire()
             self._txDone.clear()
             
-        self._stateMutex.release()
         self._txReady.set()
+        self._stateMutex.release()
 
     def sendNum(self, id, val):
         self.sendCommand(ffi.new("Command *", {'tag': lib.Command_Num, 'contents': {'Num': {'id': id, 'val': val}}})[0])
@@ -83,16 +85,17 @@ class CounterClient:
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
         sys.exit("Expected serial port name")
-        
-    responses = 0
+
+    expectedSums = {i for i in range(500)}
     def printSum(id, val):
-        global responses
-        responses += 1
+        global expectedSums
+        expectedSums -= {id}
         print("Sum", id, val)
 
+    expectedProducts = {i for i in range(500)}
     def printProduct(id, val):
-        global responses
-        responses += 1
+        global expectedProducts
+        expectedProducts -= {id}
         print("Product", id, val)
 
     client = CounterClient(sys.argv[1], printSum, printProduct)
@@ -103,13 +106,17 @@ if __name__ == "__main__":
         print("Reset", i)
         client.resetSum(i)
         client.resetProduct(i)
-        for j in range(1, 100):
+        for j in range(1, 101):
             print("Send", k, j)
             client.sendNum(k, j)
             k += 1
 
-    while responses < 1000:
-        time.sleep(50)
+    while expectedSums or expectedProducts:
+        if expectedSums:
+            print("Waiting on sums", expectedSums)
+        if expectedProducts:
+            print("Waiting on products", expectedProducts)
+        time.sleep(0.05)
     
             
 
