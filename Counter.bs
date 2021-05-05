@@ -1,15 +1,11 @@
 package Counter where
 
-import GenCRepr
-import GenCMsg
 import CShow
 import Vector
+import FIFO
 import GetPut
-import Connectable
-import UART
-import COBS
 
-type Id = Bit 16 -- Try changing the size (will need to update in CounterIface.bsv)
+type Id = Bit 16 -- Try changing the size
 
 -- Try adding/reordering constructors
 data Command = Num { id :: Id; val :: Int 16; }
@@ -22,67 +18,39 @@ struct Result a =
   val :: a
  deriving (Bits)
 
-interface CounterMsgs =
-  -- In order of highest to lowest urgency
-  -- Try changing the order and FIFO sizes
-  commands :: Rx 16 16 Command
-  sums     :: Tx 16 2 (Result (Int 16))
-  products :: Tx 16 2 (Result (Int 64))
-
 interface Counter =
-  txMsg :: Get (UInt 4, Vector 12 (Bit 8))
-  rxMsg :: Put (UInt 4, Vector 12 (Bit 8))
+  command :: Put Command
+  sum :: Get (Result (Int 16))
+  product :: Get (Result (Int 64))
 
 {-# verilog mkCounter #-}
 mkCounter :: Module Counter
 mkCounter = module
-  msgMgr <- mkMsgManager
-  let msgs :: CounterMsgs = msgMgr.fifos
+  commands <- mkFIFO
+  sums <- mkFIFO
+  products <- mkFIFO
 
   sum :: Reg (Int 16) <- mkReg 0
   product :: Reg (Int 64) <- mkReg 1
 
   rules
     "handle_command": when True ==> do
-      let c :: Command = msgs.commands.first
-      msgs.commands.deq
       -- $display "Handling command " (cshow c)
-      case c of
+      case commands.first of
         Num { id = id; val = val; } -> do
           let newSum = sum + val
           let newProduct = product * signExtend val
-          msgs.sums.enq (Result { id = id; val = newSum; })
-          msgs.products.enq (Result { id = id; val = newProduct; })
+          sums.enq (Result { id = id; val = newSum; })
+          products.enq (Result { id = id; val = newProduct; })
           sum := newSum
           product := newProduct
         ResetSum val -> do
           sum := val
         ResetProduct val -> do
           product := val
+      commands.deq
 
   interface
-    txMsg = msgMgr.txMsg
-    rxMsg = Put {put = \ (_, m) -> msgMgr.rxMsg.put m;}
-
-interface Top =
-  tx :: Bit 1 {-# always_ready, always_enabled #-}
-  rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
-
-{-# verilog mkTop #-}
-mkTop :: Module Top
-mkTop = module
-  writeCMsgDecls "counter" (_ :: CounterMsgs)
-
-  uart <- mkUART 115200
-  enc :: COBSEncoder 12 <- mkCOBSEncoder
-  dec :: COBSDecoder 12 <- mkCOBSDecoder
-  ctr <- mkCounter
-
-  uart.rxData <-> dec.byte
-  dec.msg <-> ctr.rxMsg
-  ctr.txMsg <-> enc.msg
-  enc.byte <-> uart.txData
-
-  interface
-    tx = uart.tx
-    rx = uart.rx
+    command = toPut commands
+    sum = toGet sums
+    product = toGet products

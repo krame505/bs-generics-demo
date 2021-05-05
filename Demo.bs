@@ -1,0 +1,51 @@
+package Demo where
+
+import GenCRepr
+import GenCMsg
+import CShow
+import Vector
+import GetPut
+import Connectable
+import UART
+import COBS
+import Counter
+
+interface DemoMsgs =
+  -- In order of highest to lowest urgency
+  -- Try changing the order and FIFO sizes
+  commands :: Rx 16 16 Command
+  sums     :: Tx 16 2 (Result (Int 16))
+  products :: Tx 16 2 (Result (Int 64))
+
+type DemoTxBytes = 12
+type DemoRxBytes = 12
+
+interface Top =
+  tx :: Bit 1 {-# always_ready, always_enabled #-}
+  rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
+
+{-# verilog mkTop #-}
+mkTop :: Module Top
+mkTop = module
+  writeCMsgDecls "demo" (_ :: DemoMsgs)
+
+  uart <- mkUART 115200
+  enc :: COBSEncoder DemoTxBytes <- mkCOBSEncoder
+  dec :: COBSDecoder DemoRxBytes <- mkCOBSDecoder
+  msgMgr :: MsgManager DemoMsgs DemoTxBytes DemoRxBytes <- mkMsgManager
+  let putMsg :: Put (SizedVector DemoRxBytes (Bit 8)) =  -- Discards the size
+        Put {put = \ (_, m) -> msgMgr.rxMsg.put m;}
+
+  uart.rxData <-> dec.byte
+  dec.msg <-> putMsg
+  msgMgr.txMsg <-> enc.msg
+  enc.byte <-> uart.txData
+  
+  ctr <- mkCounter
+  toGet msgMgr.fifos.commands <-> ctr.command
+  ctr.sum <-> toPut msgMgr.fifos.sums
+  ctr.product <-> toPut msgMgr.fifos.products
+
+  interface
+    tx = uart.tx
+    rx = uart.rx

@@ -8,6 +8,7 @@
 *.o
 *.so
 *.out
+__pycache__/
 *.cache/
 *.hw/
 *.runs/
