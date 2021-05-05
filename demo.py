@@ -47,9 +47,20 @@ class Client:
     def start(self):
         threading.Thread(target=self._run, daemon=True).start()
 
-    def putCommand(self, command):
+    def putCounterCommand(self, command):
         self._stateMutex.acquire()
-        while not lib.enqueue_DemoMsgs_commands(self._state, command):
+        while not lib.enqueue_DemoMsgs_ctrCommands(self._state, command):
+            self._stateMutex.release()
+            self._txDone.wait()
+            self._stateMutex.acquire()
+            self._txDone.clear()
+
+        self._txReady.set()
+        self._stateMutex.release()
+
+    def putRGBCommand(self, command):
+        self._stateMutex.acquire()
+        while not lib.enqueue_DemoMsgs_rgbCommands(self._state, command):
             self._stateMutex.release()
             self._txDone.wait()
             self._stateMutex.acquire()
@@ -77,10 +88,13 @@ class Client:
             return res
 
     def sendNum(self, id, val):
-        self.putCommand(ffi.new("Command *", {'tag': lib.Command_Num, 'contents': {'Num': {'id': id, 'val': val}}})[0])
+        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_Num, 'contents': {'Num': {'id': id, 'val': val}}})[0])
 
     def resetSum(self, val):
-        self.putCommand(ffi.new("Command *", {'tag': lib.Command_ResetSum, 'contents': {'ResetSum': val}})[0])
+        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetSum, 'contents': {'ResetSum': val}})[0])
 
     def resetProduct(self, val):
-        self.putCommand(ffi.new("Command *", {'tag': lib.Command_ResetProduct, 'contents': {'ResetProduct': val}})[0])
+        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetProduct, 'contents': {'ResetProduct': val}})[0])
+
+    def rgb(self, a, r, g, b):
+        self.putRGBCommand(ffi.new("RGBCommand *", {'addr': a, 'state': {'red': r, 'green': g, 'blue': b}})[0])

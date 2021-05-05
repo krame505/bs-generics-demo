@@ -9,17 +9,30 @@ import Connectable
 import UART
 import COBS
 import Counter
+import RGB
+
+type NumRGBs = 4
+
+struct RGBCommand =
+  addr :: UInt (TLog NumRGBs)
+  state :: RGB
+ deriving (Bits)
 
 interface DemoMsgs =
   -- In order of highest to lowest urgency
   -- Try changing the order and FIFO sizes
-  commands :: Rx 16 16 Command
-  sums     :: Tx 16 2 (Result (Int 16))
-  products :: Tx 16 2 (Result (Int 64))
+  ctrCommands :: Rx 16 16 CounterCommand
+  sums        :: Tx 16 2 (Result (Int 16))
+  products    :: Tx 16 2 (Result (Int 64))
+
+  rgbCommands :: Rx 8 8 RGBCommand
 
 interface Top =
   tx :: Bit 1 {-# always_ready, always_enabled #-}
   rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
+  red :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  green :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  blue :: Bit NumRGBs {-# always_ready, always_enabled #-}
 
 {-# verilog mkTop #-}
 mkTop :: Module Top
@@ -33,7 +46,7 @@ mkTopReal = module
   uart <- mkUART 115200
   enc :: COBSEncoder txBytes <- mkCOBSEncoder
   dec :: COBSDecoder rxBytes <- mkCOBSDecoder
-  msgMgr :: MsgManager DemoMsgs txBytes rxBytes <- mkMsgManager
+  msgMgr :: MsgManager DemoMsgs rxBytes txBytes <- mkMsgManager
 
   uart.rxData <-> dec.byte
   dec.msg <-> dropSize msgMgr.rxMsg
@@ -41,10 +54,20 @@ mkTopReal = module
   enc.byte <-> uart.txData
 
   ctr <- mkCounter
-  toGet msgMgr.fifos.commands <-> ctr.command
+  toGet msgMgr.fifos.ctrCommands <-> ctr.command
   ctr.sum <-> toPut msgMgr.fifos.sums
   ctr.product <-> toPut msgMgr.fifos.products
+
+  rgbs :: Vector NumRGBs RGBControl <- replicateM mkRGBControl
+  rules
+    "write_rgb": when True ==> do
+      let c = msgMgr.fifos.rgbCommands.first
+      (select rgbs c.addr).state.put c.state
+      msgMgr.fifos.rgbCommands.deq
 
   interface
     tx = uart.tx
     rx = uart.rx
+    red = Prelude.pack $ map (\ c -> (c::RGBControl).red) rgbs
+    green = Prelude.pack $ map (\ c -> (c::RGBControl).green) rgbs
+    blue = Prelude.pack $ map (\ c -> (c::RGBControl).blue) rgbs

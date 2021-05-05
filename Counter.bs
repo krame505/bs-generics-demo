@@ -8,9 +8,9 @@ import GetPut
 type Id = Bit 16 -- Try changing the size
 
 -- Try adding/reordering constructors
-data Command = Num { id :: Id; val :: Int 16; }
-             | ResetSum (Int 16)
-             | ResetProduct (Int 64)
+data CounterCommand = Num { id :: Id; val :: Int 16; }
+                    | ResetSum (Int 16)
+                    | ResetProduct (Int 64)
   deriving (Bits)
 
 struct Result a =
@@ -19,7 +19,7 @@ struct Result a =
  deriving (Bits)
 
 interface Counter =
-  command :: Put Command
+  command :: Put CounterCommand
   sum :: Get (Result (Int 16))
   product :: Get (Result (Int 64))
 
