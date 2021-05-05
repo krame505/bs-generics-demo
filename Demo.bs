@@ -17,30 +17,29 @@ interface DemoMsgs =
   sums     :: Tx 16 2 (Result (Int 16))
   products :: Tx 16 2 (Result (Int 64))
 
-type DemoTxBytes = 12
-type DemoRxBytes = 12
-
 interface Top =
   tx :: Bit 1 {-# always_ready, always_enabled #-}
   rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
 
 {-# verilog mkTop #-}
 mkTop :: Module Top
-mkTop = module
+mkTop = mkTopReal
+
+-- Seperated out due to the context...
+mkTopReal :: (GenCMsg DemoMsgs rxBytes txBytes) => Module Top
+mkTopReal = module
   writeCMsgDecls "demo" (_ :: DemoMsgs)
 
   uart <- mkUART 115200
-  enc :: COBSEncoder DemoTxBytes <- mkCOBSEncoder
-  dec :: COBSDecoder DemoRxBytes <- mkCOBSDecoder
-  msgMgr :: MsgManager DemoMsgs DemoTxBytes DemoRxBytes <- mkMsgManager
-  let putMsg :: Put (SizedVector DemoRxBytes (Bit 8)) =  -- Discards the size
-        Put {put = \ (_, m) -> msgMgr.rxMsg.put m;}
+  enc :: COBSEncoder txBytes <- mkCOBSEncoder
+  dec :: COBSDecoder rxBytes <- mkCOBSDecoder
+  msgMgr :: MsgManager DemoMsgs txBytes rxBytes <- mkMsgManager
 
   uart.rxData <-> dec.byte
-  dec.msg <-> putMsg
+  dec.msg <-> dropSize msgMgr.rxMsg
   msgMgr.txMsg <-> enc.msg
   enc.byte <-> uart.txData
-  
+
   ctr <- mkCounter
   toGet msgMgr.fifos.commands <-> ctr.command
   ctr.sum <-> toPut msgMgr.fifos.sums

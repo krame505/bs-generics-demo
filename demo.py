@@ -84,4 +84,3 @@ class Client:
 
     def resetProduct(self, val):
         self.putCommand(ffi.new("Command *", {'tag': lib.Command_ResetProduct, 'contents': {'ResetProduct': val}})[0])
-
