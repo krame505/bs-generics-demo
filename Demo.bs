@@ -18,6 +18,8 @@ struct RGBCommand =
   state :: RGB
  deriving (Bits)
 
+type NumButtons = 4
+
 interface DemoMsgs =
   -- In order of highest to lowest urgency
   -- Try changing the order and FIFO sizes
@@ -27,12 +29,15 @@ interface DemoMsgs =
 
   rgbCommands :: Rx 8 8 RGBCommand
 
+  buttonEvents :: Tx 8 8 (UInt NumButtons)
+
 interface Top =
   tx :: Bit 1 {-# always_ready, always_enabled #-}
   rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
   red :: Bit NumRGBs {-# always_ready, always_enabled #-}
   green :: Bit NumRGBs {-# always_ready, always_enabled #-}
   blue :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  buttons :: Bit NumButtons -> Action {-# always_ready, always_enabled, prefix="", arg_names = [buttons] #-}
 
 {-# verilog mkTop #-}
 mkTop :: Module Top
@@ -65,9 +70,32 @@ mkTopReal = module
       (select rgbs c.addr).state.put c.state
       msgMgr.fifos.rgbCommands.deq
 
+  let buttonDebounce = 10000 -- Clock cycles to wait before declaring a press
+  buttonCounts :: Vector NumButtons (Reg (UInt 16)) <- replicateM $ mkReg 0
+  buttonSent :: Vector NumButtons (Reg Bool) <- replicateM $ mkReg False
+  let readButtons :: Bit NumButtons -> Action
+      readButtons x = mapM_
+        (\ i ->
+          if (1 & (x >> i)) == 1 && (buttonCounts !! i)._read <= maxBound
+          then buttonCounts !! i := (buttonCounts !! i)._read + 1
+          else do buttonCounts !! i := 0
+                  buttonSent !! i := False
+        )
+        (genVector :: Vector NumButtons Integer)
+  addRules $ foldr1 (<+) $ map
+    (\ i ->
+      rules
+        ("send_button_" +++ integerToString i):
+            when not (buttonSent !! i)._read && (buttonCounts !! i)._read >= buttonDebounce ==> do
+          msgMgr.fifos.buttonEvents.enq (fromInteger i)
+          buttonSent !! i := True
+    )
+    (genVector :: Vector NumButtons Integer)
+
   interface
     tx = uart.tx
     rx = uart.rx
     red = Prelude.pack $ map (\ c -> (c::RGBControl).red) rgbs
     green = Prelude.pack $ map (\ c -> (c::RGBControl).green) rgbs
     blue = Prelude.pack $ map (\ c -> (c::RGBControl).blue) rgbs
+    buttons = readButtons

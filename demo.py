@@ -58,17 +58,6 @@ class Client:
         self._txReady.set()
         self._stateMutex.release()
 
-    def putRGBCommand(self, command):
-        self._stateMutex.acquire()
-        while not lib.enqueue_DemoMsgs_rgbCommands(self._state, command):
-            self._stateMutex.release()
-            self._txDone.wait()
-            self._stateMutex.acquire()
-            self._txDone.clear()
-
-        self._txReady.set()
-        self._stateMutex.release()
-
     def getSum(self):
         res = ffi.new("Result_int16 *")
         self._stateMutex.acquire()
@@ -86,6 +75,26 @@ class Client:
         self._stateMutex.release()
         if hasRes:
             return res
+
+    def putRGBCommand(self, command):
+        self._stateMutex.acquire()
+        while not lib.enqueue_DemoMsgs_rgbCommands(self._state, command):
+            self._stateMutex.release()
+            self._txDone.wait()
+            self._stateMutex.acquire()
+            self._txDone.clear()
+
+        self._txReady.set()
+        self._stateMutex.release()
+
+    def getButtonEvent(self):
+        res = ffi.new("uint8_t *")
+        self._stateMutex.acquire()
+        hasRes = lib.dequeue_DemoMsgs_buttonEvents(self._state, res)
+        self._txReady.set()
+        self._stateMutex.release()
+        if hasRes:
+            return res[0]
 
     def sendNum(self, id, val):
         self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_Num, 'contents': {'Num': {'id': id, 'val': val}}})[0])
