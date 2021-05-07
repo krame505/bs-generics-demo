@@ -12,12 +12,6 @@ import Counter
 import RGB
 
 type NumRGBs = 4
-
-struct RGBCommand =
-  addr :: UInt (TLog NumRGBs)
-  state :: RGB
- deriving (Bits)
-
 type NumButtons = 4
 
 interface DemoMsgs =
@@ -27,7 +21,7 @@ interface DemoMsgs =
   sums        :: Tx 16 2 (Result (Int 16))
   squareSums    :: Tx 16 2 (Result (Int 64))
 
-  rgbCommands :: Rx 8 8 RGBCommand
+  rgbCommands :: Rx 8 8 (RGBCommand NumRGBs)
 
   buttonEvents :: Tx 8 8 (UInt NumButtons)
 
@@ -63,12 +57,8 @@ mkTopReal = module
   ctr.sum <-> toPut msgMgr.fifos.sums
   ctr.squareSum <-> toPut msgMgr.fifos.squareSums
 
-  rgbs :: Vector NumRGBs RGBControl <- replicateM mkRGBControl
-  rules
-    "write_rgb": when True ==> do
-      let c = msgMgr.fifos.rgbCommands.first
-      (select rgbs c.addr).state.put c.state
-      msgMgr.fifos.rgbCommands.deq
+  rgbs :: RGBControls NumRGBs <- mkRGBControls
+  toGet msgMgr.fifos.rgbCommands <-> rgbs.command
 
   let buttonDebounce = 10000 -- Clock cycles to wait before declaring a press
   buttonCounts :: Vector NumButtons (Reg (UInt 16)) <- replicateM $ mkReg 0
@@ -95,7 +85,7 @@ mkTopReal = module
   interface
     tx = uart.tx
     rx = uart.rx
-    red = Prelude.pack $ map (\ c -> (c::RGBControl).red) rgbs
-    green = Prelude.pack $ map (\ c -> (c::RGBControl).green) rgbs
-    blue = Prelude.pack $ map (\ c -> (c::RGBControl).blue) rgbs
+    red = rgbs.red
+    green = rgbs.green
+    blue = rgbs.blue
     buttons = readButtons

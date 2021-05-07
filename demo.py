@@ -106,4 +106,4 @@ class Client:
         self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetSquareSum, 'contents': {'ResetSquareSum': val}})[0])
 
     def rgb(self, a, r, g, b):
-        self.putRGBCommand(ffi.new("RGBCommand *", {'addr': a, 'state': {'red': r, 'green': g, 'blue': b}})[0])
+        self.putRGBCommand(ffi.new("RGBCommand_4 *", {'addr': a, 'state': {'red': r, 'green': g, 'blue': b}})[0])
