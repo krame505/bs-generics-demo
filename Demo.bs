@@ -19,7 +19,7 @@ interface DemoMsgs =
   -- In order of highest to lowest urgency
   -- Try changing the order and FIFO sizes
   ctrCommands :: Rx 16 16 CounterCommand
-  sums        :: Tx 16 2 (Result (Int 16))
+  sums        :: Tx 16 2 (Result (Int 32))
   squareSums    :: Tx 16 2 (Result (Int 64))
 
   rgbCommands :: Rx 8 8 (RGBCommand NumRGBs)

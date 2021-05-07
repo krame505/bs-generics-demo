@@ -59,7 +59,7 @@ class Client:
         self._stateMutex.release()
 
     def getSum(self):
-        res = ffi.new("Result_int16 *")
+        res = ffi.new("Result_int32 *")
         self._stateMutex.acquire()
         hasRes = lib.dequeue_DemoMsgs_sums(self._state, res)
         self._txReady.set()

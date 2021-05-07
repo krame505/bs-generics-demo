@@ -8,8 +8,8 @@ import GetPut
 type Id = Bit 16 -- Try changing the size
 
 -- Try adding/reordering constructors
-data CounterCommand = Num { id :: Id; val :: Int 16; }
-                    | ResetSum (Int 16)
+data CounterCommand = Num { id :: Id; val :: Int 32; }
+                    | ResetSum (Int 32)
                     | ResetSquareSum (Int 64)
   deriving (Bits)
 
@@ -20,7 +20,7 @@ struct Result a =
 
 interface Counter =
   command :: Put CounterCommand
-  sum :: Get (Result (Int 16))
+  sum :: Get (Result (Int 32))
   squareSum :: Get (Result (Int 64))
 
 {-# verilog mkCounter #-}
@@ -30,7 +30,7 @@ mkCounter = module
   sums <- mkFIFO
   squareSums <- mkFIFO
 
-  sum :: Reg (Int 16) <- mkReg 0
+  sum :: Reg (Int 32) <- mkReg 0
   squareSum :: Reg (Int 64) <- mkReg 1
 
   rules
