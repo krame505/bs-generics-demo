@@ -67,10 +67,10 @@ class Client:
         if hasRes:
             return res
 
-    def getProduct(self):
+    def getSquareSum(self):
         res = ffi.new("Result_int64 *")
         self._stateMutex.acquire()
-        hasRes = lib.dequeue_DemoMsgs_products(self._state, res)
+        hasRes = lib.dequeue_DemoMsgs_squareSums(self._state, res)
         self._txReady.set()
         self._stateMutex.release()
         if hasRes:
@@ -102,8 +102,8 @@ class Client:
     def resetSum(self, val):
         self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetSum, 'contents': {'ResetSum': val}})[0])
 
-    def resetProduct(self, val):
-        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetProduct, 'contents': {'ResetProduct': val}})[0])
+    def resetSquareSum(self, val):
+        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetSquareSum, 'contents': {'ResetSquareSum': val}})[0])
 
     def rgb(self, a, r, g, b):
         self.putRGBCommand(ffi.new("RGBCommand *", {'addr': a, 'state': {'red': r, 'green': g, 'blue': b}})[0])

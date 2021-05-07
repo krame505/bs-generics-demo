@@ -14,19 +14,19 @@ if __name__ == "__main__":
 
     def handler():
         expectedSums = {i for i in range(500)}
-        expectedProducts = {i for i in range(500)}
-        while expectedSums or expectedProducts:
+        expectedSquareSums = {i for i in range(500)}
+        while expectedSums or expectedSquareSums:
             if res := client.getSum():
                 expectedSums -= {res.id}
                 print("Sum", res.id, res.val)
-            elif res := client.getProduct():
-                expectedProducts -= {res.id}
-                print("Product", res.id, res.val)
+            elif res := client.getSquareSum():
+                expectedSquareSums -= {res.id}
+                print("Squares", res.id, res.val)
             else:
                 if expectedSums:
                    print("Waiting on sums", expectedSums)
-                if expectedProducts:
-                   print("Waiting on products", expectedProducts)
+                if expectedSquareSums:
+                   print("Waiting on squares", expectedSquareSums)
             time.sleep(0.005)
 
     handlerThread = threading.Thread(target=handler)
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     for i in range(5):
         print("Reset", i)
         client.resetSum(i)
-        client.resetProduct(i)
+        client.resetSquareSum(i)
         for j in range(1, 101):
             print("Send", k, j)
             client.sendNum(k, j)

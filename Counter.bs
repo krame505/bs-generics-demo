@@ -10,7 +10,7 @@ type Id = Bit 16 -- Try changing the size
 -- Try adding/reordering constructors
 data CounterCommand = Num { id :: Id; val :: Int 16; }
                     | ResetSum (Int 16)
-                    | ResetProduct (Int 64)
+                    | ResetSquareSum (Int 64)
   deriving (Bits)
 
 struct Result a =
@@ -21,17 +21,17 @@ struct Result a =
 interface Counter =
   command :: Put CounterCommand
   sum :: Get (Result (Int 16))
-  product :: Get (Result (Int 64))
+  squareSum :: Get (Result (Int 64))
 
 {-# verilog mkCounter #-}
 mkCounter :: Module Counter
 mkCounter = module
   commands <- mkFIFO
   sums <- mkFIFO
-  products <- mkFIFO
+  squareSums <- mkFIFO
 
   sum :: Reg (Int 16) <- mkReg 0
-  product :: Reg (Int 64) <- mkReg 1
+  squareSum :: Reg (Int 64) <- mkReg 1
 
   rules
     "handle_command": when True ==> do
@@ -39,18 +39,18 @@ mkCounter = module
       case commands.first of
         Num { id = id; val = val; } -> do
           let newSum = sum + val
-          let newProduct = product * signExtend val
+          let newSquareSum = squareSum + (signExtend val) * (signExtend val)
           sums.enq (Result { id = id; val = newSum; })
-          products.enq (Result { id = id; val = newProduct; })
+          squareSums.enq (Result { id = id; val = newSquareSum; })
           sum := newSum
-          product := newProduct
+          squareSum := newSquareSum
         ResetSum val -> do
           sum := val
-        ResetProduct val -> do
-          product := val
+        ResetSquareSum val -> do
+          squareSum := val
       commands.deq
 
   interface
     command = toPut commands
     sum = toGet sums
-    product = toGet products
+    squareSum = toGet squareSums

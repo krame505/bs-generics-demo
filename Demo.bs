@@ -25,7 +25,7 @@ interface DemoMsgs =
   -- Try changing the order and FIFO sizes
   ctrCommands :: Rx 16 16 CounterCommand
   sums        :: Tx 16 2 (Result (Int 16))
-  products    :: Tx 16 2 (Result (Int 64))
+  squareSums    :: Tx 16 2 (Result (Int 64))
 
   rgbCommands :: Rx 8 8 RGBCommand
 
@@ -61,7 +61,7 @@ mkTopReal = module
   ctr <- mkCounter
   toGet msgMgr.fifos.ctrCommands <-> ctr.command
   ctr.sum <-> toPut msgMgr.fifos.sums
-  ctr.product <-> toPut msgMgr.fifos.products
+  ctr.squareSum <-> toPut msgMgr.fifos.squareSums
 
   rgbs :: Vector NumRGBs RGBControl <- replicateM mkRGBControl
   rules
