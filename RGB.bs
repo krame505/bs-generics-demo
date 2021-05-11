@@ -1,0 +1,59 @@
+package RGB where
+
+import GetPut
+import FIFO
+import Vector
+
+struct RGB =
+  red :: UInt 8
+  green :: UInt 8
+  blue :: UInt 8
+ deriving (Bits)
+
+interface RGBControl =
+  state :: Put RGB
+  red :: Bit 1 {-# always_ready, always_enabled #-}
+  green :: Bit 1 {-# always_ready, always_enabled #-}
+  blue :: Bit 1 {-# always_ready, always_enabled #-}
+
+{-# verilog mkRGBControl #-}
+mkRGBControl :: Module RGBControl
+mkRGBControl = module
+  state :: Reg RGB <- mkReg $ RGB {red = 0; green = 0; blue = 0;}
+  count :: Reg (UInt 8) <- mkReg 0
+
+  rules
+    "update_count": when True ==> count := count + 1
+
+  interface
+    state = toPut state._write
+    red = if count < state.red then 1 else 0
+    green = if count < state.green then 1 else 0
+    blue = if count < state.blue then 1 else 0
+
+interface RGBControls n =
+  command :: Put (RGBCommand n)
+  red :: Bit n {-# always_ready, always_enabled #-}
+  green :: Bit n {-# always_ready, always_enabled #-}
+  blue :: Bit n {-# always_ready, always_enabled #-}
+
+struct RGBCommand n =
+  addr :: UInt (TLog n)
+  state :: RGB
+ deriving (Bits)
+
+mkRGBControls :: Module (RGBControls n)
+mkRGBControls = module
+  rgbs :: Vector n RGBControl <- replicateM mkRGBControl
+  commands :: FIFO (RGBCommand n) <- mkFIFO
+
+  rules
+    "write_rgb": when True ==> do
+      (select rgbs commands.first.addr).state.put commands.first.state
+      commands.deq
+
+  interface
+    command = toPut commands
+    red = pack $ map (\ c -> (c :: RGBControl).red) rgbs
+    green = pack $ map (\ c -> (c :: RGBControl).green) rgbs
+    blue = pack $ map (\ c -> (c :: RGBControl).blue) rgbs

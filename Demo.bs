@@ -1,0 +1,73 @@
+package Demo where
+
+import GenCRepr
+import GenCMsg
+import CShow
+import Vector
+import GetPut
+import Connectable
+import UART
+import COBS
+import Counter
+import RGB
+import Buttons
+
+type NumRGBs = 4
+type NumButtons = 4
+
+interface DemoMsgs =
+  -- In order of highest to lowest urgency
+  -- Try changing the order and FIFO sizes
+  ctrCommands :: Rx 16 16 CounterCommand
+  sums        :: Tx 16 2 (Result (Int 32))
+  squareSums    :: Tx 16 2 (Result (Int 64))
+
+  rgbCommands :: Rx 8 8 (RGBCommand NumRGBs)
+
+  buttonEvents :: Tx 8 8 (UInt (TLog NumButtons))
+
+interface Top =
+  tx :: Bit 1 {-# always_ready, always_enabled #-}
+  rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
+  red :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  green :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  blue :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  buttons :: Bit NumButtons -> Action {-# always_ready, always_enabled, prefix="", arg_names = [buttons] #-}
+
+{-# verilog mkTop #-}
+mkTop :: Module Top
+mkTop = mkTopReal
+
+-- Seperated out due to the context...
+mkTopReal :: (GenCMsg DemoMsgs rxBytes txBytes) => Module Top
+mkTopReal = module
+  writeCMsgDecls "demo" (_ :: DemoMsgs)
+
+  uart <- mkUART 115200
+  enc :: COBSEncoder txBytes <- mkCOBSEncoder
+  dec :: COBSDecoder rxBytes <- mkCOBSDecoder
+  msgMgr :: MsgManager DemoMsgs rxBytes txBytes <- mkMsgManager
+
+  uart.rxData <-> dec.byte
+  dec.msg <-> dropSize msgMgr.rxMsg
+  msgMgr.txMsg <-> enc.msg
+  enc.byte <-> uart.txData
+
+  ctr <- mkCounter
+  toGet msgMgr.fifos.ctrCommands <-> ctr.command
+  ctr.sum <-> toPut msgMgr.fifos.sums
+  ctr.squareSum <-> toPut msgMgr.fifos.squareSums
+
+  rgbs :: RGBControls NumRGBs <- mkRGBControls
+  toGet msgMgr.fifos.rgbCommands <-> rgbs.command
+
+  buttons :: Buttons NumButtons <- mkButtons
+  buttons.events <-> toPut msgMgr.fifos.buttonEvents
+
+  interface
+    tx = uart.tx
+    rx = uart.rx
+    red = rgbs.red
+    green = rgbs.green
+    blue = rgbs.blue
+    buttons = buttons.buttons

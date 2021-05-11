@@ -1,0 +1,22 @@
+package UARTDemo where
+
+import UART
+import GetPut
+
+interface UARTDemo =
+  tx :: Bit 1 {-# always_ready, always_enabled #-}
+  rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
+
+{-# verilog mkUARTDemo #-}
+mkUARTDemo :: Module UARTDemo
+mkUARTDemo = module
+  uart <- mkUART 9600
+
+  rules
+    "echo": when True ==> do
+       c <- uart.rxData.get
+       uart.txData.put $ c + 1
+
+  interface
+    tx = uart.tx
+    rx = uart.rx

@@ -1,0 +1,36 @@
+package Buttons where
+
+import FIFO
+import GetPut
+import Vector
+
+interface Buttons n =
+  events :: Get (UInt (TLog n))
+  buttons :: Bit n -> Action {-# always_ready, always_enabled, prefix="", arg_names = [buttons] #-}
+
+mkButtons :: Module (Buttons n)
+mkButtons = module
+  let buttonDebounce = 1000000 -- Clock cycles to wait before declaring a press
+
+  counts :: Vector n (Reg (UInt 32)) <- replicateM $ mkReg 0
+  sent :: Vector n (Reg Bool) <- replicateM $ mkReg False
+  events :: FIFO (UInt (TLog n)) <- mkFIFO
+
+  let sendRule i =
+        rules
+          ("send_button_" +++ integerToString i):
+              when not (sent !! i)._read && (counts !! i)._read >= buttonDebounce ==> do
+            events.enq (fromInteger i)
+            sent !! i := True
+  addRules $ foldr (<+) emptyRules $ map sendRule (genVector :: Vector n Integer)
+
+  let readAction x i =
+        if (1 & (x >> i)) == 1 && (counts !! i)._read <= maxBound
+        then counts !! i := (counts !! i)._read + 1
+        else do counts !! i := 0
+                sent !! i := False
+  interface
+    events = toGet events
+    buttons x = mapM_ (readAction x) (genVector :: Vector n Integer)
+
+
