@@ -8,7 +8,7 @@ import GetPut
 import Connectable
 import UART
 import COBS
-import Counter
+import SumSquares
 import RGB
 import Buttons
 
