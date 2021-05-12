@@ -1,6 +1,6 @@
 
 all:
-	bsc -u -verilog -p +:../bsc-contrib/Libraries/GenCRepr/ Demo.bs
+	bsc -u -verilog -p +:../bsc-contrib/Libraries/GenCRepr/:../bsc-contrib/Libraries/GenCMsg Demo.bs
 	./build_demo_ffi.py
 
 clean:
