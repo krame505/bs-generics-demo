@@ -47,9 +47,9 @@ class Client:
     def start(self):
         threading.Thread(target=self._run, daemon=True).start()
 
-    def putCounterCommand(self, command):
+    def putCounterRequest(self, request):
         self._stateMutex.acquire()
-        while not lib.enqueue_DemoMsgs_ctrCommands(self._state, command):
+        while not lib.enqueue_DemoMsgs_ctrRequests(self._state, request):
             self._stateMutex.release()
             self._txDone.wait()
             self._stateMutex.acquire()
@@ -59,7 +59,7 @@ class Client:
         self._stateMutex.release()
 
     def getSum(self):
-        res = ffi.new("Result_int32 *")
+        res = ffi.new("CounterResponse_int32 *")
         self._stateMutex.acquire()
         hasRes = lib.dequeue_DemoMsgs_sums(self._state, res)
         self._txReady.set()
@@ -68,7 +68,7 @@ class Client:
             return res
 
     def getSquareSum(self):
-        res = ffi.new("Result_int64 *")
+        res = ffi.new("CounterResponse_int64 *")
         self._stateMutex.acquire()
         hasRes = lib.dequeue_DemoMsgs_squareSums(self._state, res)
         self._txReady.set()
@@ -97,13 +97,13 @@ class Client:
             return res[0]
 
     def sendNum(self, id, val):
-        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_Num, 'contents': {'Num': {'id': id, 'val': val}}})[0])
+        self.putCounterRequest(ffi.new("CounterRequest *", {'id': id, 'command': {'tag': lib.CounterCommand_Num, 'contents': {'Num': val}}})[0])
 
-    def resetSum(self, val):
-        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetSum, 'contents': {'ResetSum': val}})[0])
+    def resetSum(self, id):
+        self.putCounterRequest(ffi.new("CounterRequest *", {'id': id, 'command': {'tag': lib.CounterCommand_ResetSum}})[0])
 
-    def resetSquareSum(self, val):
-        self.putCounterCommand(ffi.new("CounterCommand *", {'tag': lib.CounterCommand_ResetSquareSum, 'contents': {'ResetSquareSum': val}})[0])
+    def resetSquareSum(self, id):
+        self.putCounterRequest(ffi.new("CounterRequest *", {'id': id, 'command': {'tag': lib.CounterCommand_ResetSquareSum}})[0])
 
     def rgb(self, a, r, g, b):
         self.putRGBCommand(ffi.new("RGBCommand_4 *", {'addr': a, 'state': {'red': r, 'green': g, 'blue': b}})[0])

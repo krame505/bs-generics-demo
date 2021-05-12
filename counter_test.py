@@ -27,17 +27,20 @@ if __name__ == "__main__":
                    print("Waiting on sums", expectedSums)
                 if expectedSquareSums:
                    print("Waiting on squares", expectedSquareSums)
-            time.sleep(0.005)
+            time.sleep(1)
 
     handlerThread = threading.Thread(target=handler)
     handlerThread.start()
 
     k = 0
     for i in range(5):
-        print("Reset", i)
-        client.resetSum(i)
-        client.resetSquareSum(i)
-        for j in range(1, 101):
+        print("Reset sum", k)
+        client.resetSum(k)
+        k += 1
+        print("Reset squares", k)
+        client.resetSquareSum(k)
+        k += 1
+        for j in range(0, 98):
             print("Send", k, j)
             client.sendNum(k, j)
             k += 1

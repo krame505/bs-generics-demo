@@ -18,9 +18,9 @@ type NumButtons = 4
 interface DemoMsgs =
   -- In order of highest to lowest urgency
   -- Try changing the order and FIFO sizes
-  ctrCommands :: Rx 16 16 CounterCommand
-  sums        :: Tx 16 2 (Result (Int 32))
-  squareSums  :: Tx 16 2 (Result (Int 64))
+  ctrRequests :: Rx 16 16 CounterRequest
+  sums        :: Tx 16 2 (CounterResponse (Int 32))
+  squareSums  :: Tx 16 2 (CounterResponse (Int 64))
 
   rgbCommands :: Rx 8 8 (RGBCommand NumRGBs)
 
@@ -57,7 +57,7 @@ mkTopReal = module
   enc.byte <-> uart.txData
 
   ctr <- mkCounter
-  toGet msgMgr.fifos.ctrCommands <-> ctr.command
+  toGet msgMgr.fifos.ctrRequests <-> ctr.requests
   ctr.sum <-> toPut msgMgr.fifos.sums
   ctr.squareSum <-> toPut msgMgr.fifos.squareSums
 

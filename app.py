@@ -66,15 +66,17 @@ class Application(tk.Frame):
 
     def resetSum(self, event=None):
         try:
-            self.client.resetSum(int(self.value.get()))
+            self.client.resetSum(self.counterId)
         except (ValueError, OverflowError) as e:
             messagebox.showerror("Value error", str(e))
+        self.counterId += 1
 
     def resetSquareSum(self, event=None):
         try:
-            self.client.resetSquareSum(int(self.value.get()))
+            self.client.resetSquareSum(self.counterId)
         except (ValueError, OverflowError) as e:
             messagebox.showerror("Value error", str(e))
+        self.counterId += 1
 
     def pollButtons(self):
         while (event := self.client.getButtonEvent()) is not None:

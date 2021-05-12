@@ -8,49 +8,57 @@ import GetPut
 type Id = Bit 16 -- Try changing the size
 
 -- Try adding/reordering constructors
-data CounterCommand = Num { id :: Id; val :: Int 32; }
-                    | ResetSum (Int 32)
-                    | ResetSquareSum (Int 64)
+data CounterCommand
+  = Num (Int 32)
+  | ResetSum
+  | ResetSquareSum
   deriving (Bits)
 
-struct Result a =
+struct CounterRequest =
+  id :: Id
+  command :: CounterCommand
+ deriving (Bits)
+
+struct CounterResponse a =
   id :: Id
   val :: a
  deriving (Bits)
 
 interface Counter =
-  command :: Put CounterCommand
-  sum :: Get (Result (Int 32))
-  squareSum :: Get (Result (Int 64))
+  requests :: Put CounterRequest
+  sum :: Get (CounterResponse (Int 32))
+  squareSum :: Get (CounterResponse (Int 64))
 
 {-# verilog mkCounter #-}
 mkCounter :: Module Counter
 mkCounter = module
-  commands <- mkFIFO
+  requests <- mkFIFO
   sums <- mkFIFO
   squareSums <- mkFIFO
 
   sum :: Reg (Int 32) <- mkReg 0
-  squareSum :: Reg (Int 64) <- mkReg 1
+  squareSum :: Reg (Int 64) <- mkReg 0
 
   rules
-    "handle_command": when True ==> do
-      -- $display "Handling command " (cshow c)
-      case commands.first of
-        Num { id = id; val = val; } -> do
-          let newSum = sum + val
-          let newSquareSum = squareSum + (signExtend val) * (signExtend val)
-          sums.enq (Result { id = id; val = newSum; })
-          squareSums.enq (Result { id = id; val = newSquareSum; })
-          sum := newSum
-          squareSum := newSquareSum
-        ResetSum val -> do
-          sum := val
-        ResetSquareSum val -> do
-          squareSum := val
-      commands.deq
+    "handle_request": when True ==> do
+      -- $display "Handling request " (cshow requests.first)
+      let newSum =
+            case requests.first.command of
+               Num n -> sum + n
+               ResetSum -> 0
+               _ -> sum
+          newSquareSum =
+            case requests.first.command of
+               Num n -> squareSum + (signExtend n) * (signExtend n)
+               ResetSquareSum -> 0
+               _ -> squareSum
+      sums.enq (CounterResponse { id = requests.first.id; val = newSum; })
+      squareSums.enq (CounterResponse { id = requests.first.id; val = newSquareSum; })
+      sum := newSum
+      squareSum := newSquareSum
+      requests.deq
 
   interface
-    command = toPut commands
+    requests = toPut requests
     sum = toGet sums
     squareSum = toGet squareSums
