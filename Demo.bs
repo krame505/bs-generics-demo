@@ -8,7 +8,7 @@ import GetPut
 import Connectable
 import UART
 import COBS
-import Counter
+import SumSquares
 import RGB
 import Buttons
 
@@ -34,16 +34,19 @@ interface Top =
   blue :: Bit NumRGBs {-# always_ready, always_enabled #-}
   buttons :: Bit NumButtons -> Action {-# always_ready, always_enabled, prefix="", arg_names = [buttons] #-}
 
+clockFreq :: Integer
+clockFreq = 100000000
+
 {-# verilog mkTop #-}
 mkTop :: Module Top
 mkTop = mkTopReal
 
--- Seperated out due to the context...
+-- Seperated out due to the context, see https://github.com/B-Lang-org/bsc/issues/358
 mkTopReal :: (GenCMsg DemoMsgs rxBytes txBytes) => Module Top
 mkTopReal = module
   writeCMsgDecls "demo" (_ :: DemoMsgs)
 
-  uart <- mkUART 115200
+  uart <- mkUART clockFreq 115200
   enc :: COBSEncoder txBytes <- mkCOBSEncoder
   dec :: COBSDecoder rxBytes <- mkCOBSDecoder
   msgMgr :: MsgManager DemoMsgs rxBytes txBytes <- mkMsgManager

@@ -3,6 +3,9 @@ package UARTDemo where
 import UART
 import GetPut
 
+clockFreq :: Integer
+clockFreq = 100000000
+
 interface UARTDemo =
   tx :: Bit 1 {-# always_ready, always_enabled #-}
   rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
@@ -10,7 +13,7 @@ interface UARTDemo =
 {-# verilog mkUARTDemo #-}
 mkUARTDemo :: Module UARTDemo
 mkUARTDemo = module
-  uart <- mkUART 9600
+  uart <- mkUART clockFreq 9600
 
   rules
     "echo": when True ==> do

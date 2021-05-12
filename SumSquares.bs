@@ -1,4 +1,4 @@
-package Counter where
+package SumSquares where
 
 import CShow
 import Vector
