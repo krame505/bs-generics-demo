@@ -26,27 +26,10 @@ interface DemoMsgs =
 
   buttonEvents :: Tx 8 8 (UInt (TLog NumButtons))
 
-interface Top =
-  tx :: Bit 1 {-# always_ready, always_enabled #-}
-  rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
-  red :: Bit NumRGBs {-# always_ready, always_enabled #-}
-  green :: Bit NumRGBs {-# always_ready, always_enabled #-}
-  blue :: Bit NumRGBs {-# always_ready, always_enabled #-}
-  buttons :: Bit NumButtons -> Action {-# always_ready, always_enabled, prefix="", arg_names = [buttons] #-}
-
-clockFreq :: Integer
-clockFreq = 100000000
-
-{-# verilog mkTop #-}
-mkTop :: Module Top
-mkTop = mkTopReal
-
--- Seperated out due to the context, see https://github.com/B-Lang-org/bsc/issues/358
-mkTopReal :: (GenCMsg DemoMsgs rxBytes txBytes) => Module Top
-mkTopReal = module
+mkDemo :: (GenCMsg DemoMsgs rxBytes txBytes) => UART -> RGBControls NumRGBs -> Buttons NumButtons -> Module Empty
+mkDemo uart rgbs buttons = module
   writeCMsgDecls "demo" (_ :: DemoMsgs)
 
-  uart <- mkUART clockFreq 115200
   enc :: COBSEncoder txBytes <- mkCOBSEncoder
   dec :: COBSDecoder rxBytes <- mkCOBSDecoder
   msgMgr :: MsgManager DemoMsgs rxBytes txBytes <- mkMsgManager
@@ -61,11 +44,29 @@ mkTopReal = module
   ctr.sum <-> toPut msgMgr.fifos.sums
   ctr.squareSum <-> toPut msgMgr.fifos.squareSums
 
-  rgbs :: RGBControls NumRGBs <- mkRGBControls
   toGet msgMgr.fifos.rgbCommands <-> rgbs.command
 
-  buttons :: Buttons NumButtons <- mkButtons
   buttons.events <-> toPut msgMgr.fifos.buttonEvents
+
+
+interface Top =
+  tx :: Bit 1 {-# always_ready, always_enabled #-}
+  rx :: Bit 1 -> Action {-# always_ready, always_enabled, prefix="", arg_names = [rx] #-}
+  red :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  green :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  blue :: Bit NumRGBs {-# always_ready, always_enabled #-}
+  buttons :: Bit NumButtons -> Action {-# always_ready, always_enabled, prefix="", arg_names = [buttons] #-}
+
+clockFreq :: Integer
+clockFreq = 100000000
+
+{-# verilog mkTop #-}
+mkTop :: Module Top
+mkTop = module
+  uart <- mkUART clockFreq 115200
+  rgbs <- mkRGBControls
+  buttons <- mkButtons
+  mkDemo uart rgbs buttons
 
   interface
     tx = uart.tx
