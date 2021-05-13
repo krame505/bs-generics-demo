@@ -27,7 +27,7 @@ if __name__ == "__main__":
                    print("Waiting on sums", expectedSums)
                 if expectedSquareSums:
                    print("Waiting on squares", expectedSquareSums)
-            time.sleep(1)
+                time.sleep(0.01)
 
     handlerThread = threading.Thread(target=handler)
     handlerThread.start()
