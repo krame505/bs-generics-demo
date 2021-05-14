@@ -1,5 +1,6 @@
 package DemoSim where
 
+import DemoSimIface
 import Demo
 import UART
 import RGB
@@ -14,22 +15,16 @@ sysDemoSim :: Module Empty
 sysDemoSim = module
   demo <- mkDemo
 
-  tty <- mkReg InvalidFile
   init <- mkReg False
 
   rules
-    "init": when not init ==> do
-      fh <- $fopen "ttySim" "rb+"
-      tty := fh
-      init := True
-    
     "tx": when True ==> do
       c <- demo.txData.get
       $display "Tx %x" c
-      $fwrite tty "%c" (pack c)
+      txData c
 
     "rx": when True ==> do
-      c <- $fgetc tty
+      c <- rxData
       if c /= negate 1
         then do $display "Rx %x" c
                 demo.rxData.put $ truncate $ pack c

@@ -8,7 +8,7 @@ rtl:
 
 sim:
 	bsc $(BSCFLAGS) -u -sim DemoSim.bs
-	bsc $(BSCFLAGS) -sim -e sysDemoSim -o sysDemoSim.out
+	bsc $(BSCFLAGS) -sim -e sysDemoSim -o sysDemoSim.out demo_sim.c
 
 ffi: | rtl
 	./build_demo_ffi.py
