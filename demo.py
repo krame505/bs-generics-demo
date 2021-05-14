@@ -18,12 +18,17 @@ class Client:
         self._ser = serial.Serial(port, 115200)
 
     def _run(self):
+        seenStart = False
         rxData = []
         self._stateMutex.acquire()
         while True:
             for byte in self._ser.read(self._ser.in_waiting):
-                if byte == 0:
-                    #print("Rx", cobs.decode(bytes(rxData)))
+                if not seenStart:
+                    print("Discard", bytes([byte]))
+                    seenStart = byte == 0
+                elif byte == 0:
+                    print("Rx raw", bytes(rxData))
+                    print("Rx", cobs.decode(bytes(rxData)))
                     lib.decode_DemoMsgs(self._state, cobs.decode(bytes(rxData)))
                     rxData.clear()
                 else:
@@ -34,7 +39,8 @@ class Client:
             if txSize:
                 while txSize:
                     txData = bytes(txArray)[0:txSize]
-                    #print("Tx", txSize, txData)
+                    print("Tx", txSize, txData)
+                    print("Tx raw", cobs.encode(txData) + b'\0')
                     self._ser.write(cobs.encode(txData) + b'\0')
                     self._txDone.set()
                     txSize = lib.encode_DemoMsgs(self._state, txArray)

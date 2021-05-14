@@ -6,6 +6,7 @@ import CShow
 import Vector
 import GetPut
 import Connectable
+import FIFO
 import UART
 import COBS
 import SumSquares
@@ -26,27 +27,44 @@ interface DemoMsgs =
 
   buttonEvents :: Tx 8 8 (UInt (TLog NumButtons))
 
-mkDemo :: (GenCMsg DemoMsgs rxBytes txBytes) => UART -> RGBControls NumRGBs -> Buttons NumButtons -> Module Empty
-mkDemo uart rgbs buttons = module
+interface Demo =
+  txData :: Get (Bit 8)
+  rxData :: Put (Bit 8)
+  rgbCommands :: Get (RGBCommand NumRGBs)
+  buttonEvents :: Put (UInt (TLog NumButtons))
+
+mkDemo :: (GenCMsg DemoMsgs rxBytes txBytes) => Module Demo
+mkDemo = module
   writeCMsgDecls "demo" (_ :: DemoMsgs)
 
   enc :: COBSEncoder txBytes <- mkCOBSEncoder
   dec :: COBSDecoder rxBytes <- mkCOBSDecoder
   msgMgr :: MsgManager DemoMsgs rxBytes txBytes <- mkMsgManager
 
-  uart.rxData <-> dec.byte
   dec.msg <-> dropSize msgMgr.rxMsg
   msgMgr.txMsg <-> enc.msg
-  enc.byte <-> uart.txData
 
   ctr <- mkCounter
   toGet msgMgr.fifos.ctrRequests <-> ctr.requests
   ctr.sum <-> toPut msgMgr.fifos.sums
   ctr.squareSum <-> toPut msgMgr.fifos.squareSums
 
-  toGet msgMgr.fifos.rgbCommands <-> rgbs.command
+  -- Send an initial 0 on initialization
+  txData <- mkFIFO
+  init <- mkReg False
+  rules
+    "init": when not init ==> do
+      init := True
+      txData.enq 0
+    "tx": when init ==> do
+      b <- enc.byte.get
+      txData.enq b
 
-  buttons.events <-> toPut msgMgr.fifos.buttonEvents
+  interface
+    txData = toGet txData
+    rxData = dec.byte
+    rgbCommands = toGet msgMgr.fifos.rgbCommands
+    buttonEvents = toPut msgMgr.fifos.buttonEvents
 
 
 interface Top =
@@ -63,10 +81,17 @@ clockFreq = 100000000
 {-# verilog mkTop #-}
 mkTop :: Module Top
 mkTop = module
+  demo <- mkDemo
+
   uart <- mkUART clockFreq 115200
-  rgbs <- mkRGBControls
-  buttons <- mkButtons
-  mkDemo uart rgbs buttons
+  demo.txData <-> uart.txData
+  uart.rxData <-> demo.rxData
+
+  rgbs :: RGBControls NumRGBs <- mkRGBControls
+  demo.rgbCommands <-> rgbs.command
+
+  buttons :: Buttons NumButtons <- mkButtons
+  buttons.events <-> demo.buttonEvents
 
   interface
     tx = uart.tx
