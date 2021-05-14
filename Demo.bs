@@ -6,7 +6,6 @@ import CShow
 import Vector
 import GetPut
 import Connectable
-import FIFO
 import UART
 import COBS
 import SumSquares
@@ -49,19 +48,8 @@ mkDemo = module
   ctr.sum <-> toPut msgMgr.fifos.sums
   ctr.squareSum <-> toPut msgMgr.fifos.squareSums
 
-  -- Send an initial 0 on initialization
-  txData <- mkFIFO
-  init <- mkReg False
-  rules
-    "init": when not init ==> do
-      init := True
-      txData.enq 0
-    "tx": when init ==> do
-      b <- enc.byte.get
-      txData.enq b
-
   interface
-    txData = toGet txData
+    txData = enc.byte
     rxData = dec.byte
     rgbCommands = toGet msgMgr.fifos.rgbCommands
     buttonEvents = toPut msgMgr.fifos.buttonEvents

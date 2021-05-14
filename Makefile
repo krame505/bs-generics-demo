@@ -8,12 +8,12 @@ rtl:
 
 sim:
 	bsc $(BSCFLAGS) -u -sim DemoSim.bs
-	bsc $(BSCFLAGS) -sim -e sysDemoSim -o sysDemoSim.out demo_sim.c
+	bsc $(BSCFLAGS) -sim -e sysDemoSim -o sysDemoSim.out pty.c
 
 ffi: | rtl
 	./build_demo_ffi.py
 
 clean:
-	rm -rf *~ *.o *.c *.h *.cxx *.v *.bo *.ba *.so *.out __pycache__/
+	rm -rf *~ *.o demo.c _demo.c *.h *.cxx *.v *.bo *.ba *.so *.out __pycache__/
 
 .PHONY: all rtl sim ffi clean

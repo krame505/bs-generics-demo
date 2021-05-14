@@ -1,7 +1,7 @@
 package DemoSim where
 
-import DemoSimIface
 import Demo
+import PTY
 import UART
 import RGB
 import Buttons
@@ -15,17 +15,23 @@ sysDemoSim :: Module Empty
 sysDemoSim = module
   demo <- mkDemo
 
-  init <- mkReg False
+  -- Wait for first byte to be recieved before sending data
+  writeEnable <- mkReg False
 
   rules
-    "tx": when True ==> do
+    "tx": when writeEnable ==> do
       c <- demo.txData.get
-      $display "Tx %x" c
+      -- $display "Tx %x" c
       txData c
 
     "rx": when True ==> do
       c <- rxData
       if c /= negate 1
-        then do $display "Rx %x" c
+        then do -- $display "Rx %x" ((truncate $ pack c) :: Bit 8)
                 demo.rxData.put $ truncate $ pack c
+                writeEnable := True
         else noAction
+
+    "notify_rgb": when True ==> do
+      cmd <- demo.rgbCommands.get
+      $display "Set RGB %d to #%x%x%x" cmd.addr cmd.state.red cmd.state.green cmd.state.blue
