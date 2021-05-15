@@ -6,32 +6,58 @@ import UART
 import RGB
 import Buttons
 
+import GenCMsg
+import COBS
 import GetPut
 import Connectable
 import FIFO
 
-{-# verilog sysDemoSim #-}
-sysDemoSim :: Module Empty
-sysDemoSim = module
+interface DemoSimMsgs =
+  rgbCommands :: Tx 8 8 (RGBCommand NumRGBs)
+  buttonEvents :: Rx 8 8 (UInt (TLog NumButtons))
+
+mkDemoSim :: (GenCMsg DemoSimMsgs rxBytes txBytes) => Module Empty
+mkDemoSim = module
+  writeCMsgDecls "demo_sim" (_ :: DemoSimMsgs)
+  msgMgr :: MsgManager DemoSimMsgs rxBytes txBytes <- mkMsgManager
+  enc :: COBSEncoder txBytes <- mkCOBSEncoder
+  dec :: COBSDecoder rxBytes <- mkCOBSDecoder
+  dec.msg <-> dropSize msgMgr.rxMsg
+  msgMgr.txMsg <-> enc.msg
+
   demo <- mkDemo
+  demo.rgbCommands <-> toPut msgMgr.fifos.rgbCommands
+  toGet msgMgr.fifos.buttonEvents <-> demo.buttonEvents
 
   -- Wait for first byte to be recieved before sending data
-  writeEnable <- mkReg False
+  clientWriteEnable <- mkReg False
+  simWriteEnable <- mkReg False
 
   rules
-    "tx": when writeEnable ==> do
+    "txClient": when clientWriteEnable ==> do
       c <- demo.txData.get
       -- $display "Tx %x" c
-      txData c
+      txClient c
 
-    "rx": when True ==> do
-      c <- rxData
+    "rxClient": when True ==> do
+      c <- rxClient
       if c /= negate 1
         then do -- $display "Rx %x" ((truncate $ pack c) :: Bit 8)
                 demo.rxData.put $ truncate $ pack c
-                writeEnable := True
+                clientWriteEnable := True
         else noAction
 
-    "notify_rgb": when True ==> do
-      cmd <- demo.rgbCommands.get
-      $display "Set RGB %d to #%x%x%x" cmd.addr cmd.state.red cmd.state.green cmd.state.blue
+    "txSim": when simWriteEnable ==> do
+      c <- enc.byte.get
+      txSim c
+
+    "rxSim": when True ==> do
+      c <- rxSim
+      if c /= negate 1
+        then do dec.byte.put $ truncate $ pack c
+                simWriteEnable := True
+        else noAction
+
+{-# verilog sysDemoSim #-}
+sysDemoSim :: Module Empty
+sysDemoSim = mkDemoSim

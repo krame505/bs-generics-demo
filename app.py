@@ -88,7 +88,7 @@ if __name__ == '__main__':
     if len(sys.argv) <= 1:
         sys.exit("Expected serial port name")
 
-    client = demo.Client(sys.argv[1])
+    client = demo.DemoClient(sys.argv[1])
     root = tk.Tk()
     root.title("FPGA Message Demo")
     app = Application(client, root)
