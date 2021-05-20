@@ -1,5 +1,5 @@
 
-BSCFLAGS=-p ../bsc-contrib/Libraries/GenCRepr:../bsc-contrib/Libraries/GenCMsg:../bsc-contrib/Libraries/FPGA/Misc:../bsc-contrib/Libraries/COBS:+
+BSCFLAGS=-p ../bsc-contrib/inst/lib/Libraries/GenC/GenCRepr:../bsc-contrib/inst/lib/Libraries/GenC/GenCMsg:../bsc-contrib/inst/lib/Libraries/FPGA/Misc:../bsc-contrib/inst/lib/Libraries/COBS:+
 
 all: rtl sim ffi
 
