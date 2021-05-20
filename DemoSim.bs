@@ -2,7 +2,6 @@ package DemoSim where
 
 import Demo
 import PTY
-import UART
 import RGB
 import Buttons
 

@@ -6,7 +6,7 @@ import CShow
 import Vector
 import GetPut
 import Connectable
-import UART
+import RS232
 import COBS
 import SumSquares
 import RGB
@@ -66,14 +66,17 @@ interface Top =
 clockFreq :: Integer
 clockFreq = 100000000
 
+baud :: Integer
+baud = 115200
+
 {-# verilog mkTop #-}
 mkTop :: Module Top
 mkTop = module
   demo <- mkDemo
 
-  uart <- mkUART clockFreq 115200
-  demo.txData <-> uart.txData
-  uart.rxData <-> demo.rxData
+  uart :: UART 8 <- mkUART 8 NONE STOP_1 (fromInteger $ clockFreq / (baud * 16))
+  demo.txData <-> uart.rx
+  uart.tx <-> demo.rxData
 
   rgbs :: RGBControls NumRGBs <- mkRGBControls
   demo.rgbCommands <-> rgbs.command
@@ -82,8 +85,8 @@ mkTop = module
   buttons.events <-> demo.buttonEvents
 
   interface
-    tx = uart.tx
-    rx = uart.rx
+    tx = uart.rs232.sout
+    rx = uart.rs232.sin
     red = rgbs.red
     green = rgbs.green
     blue = rgbs.blue

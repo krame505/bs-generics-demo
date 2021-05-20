@@ -26,7 +26,7 @@ static int createPty() {
   ptm_attr.c_cc[VTIME] = 0;
   ptm_attr.c_cc[VMIN] = 1;
   tcsetattr(ptm,TCSANOW,&ptm_attr);
-    
+
   grantpt(ptm);
   unlockpt(ptm);
 
