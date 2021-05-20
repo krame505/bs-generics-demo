@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import sys
+sys.path.append("../bsc-contrib/Libraries/GenC/GenCMsg")
+
 import msgclient
 import serial
 from _demo import ffi, lib

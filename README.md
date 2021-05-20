@@ -3,7 +3,7 @@ This is a simple demo application demonstrating the use of the python message li
 
 ## Setup instructions
 1. Install [bsc](https://github.com/b-lang-org/bsc)
-2. Clone the [bsc-contrib](https://github.com/b-lang-org/bsc-contrib) repositories in the same top-level directory as this one
+2. Clone the [bsc-contrib](https://github.com/b-lang-org/bsc-contrib) repository in the same top-level directory as this one
 ```
 $ git clone https://github.com/b-lang-org/bsc-contrib
 ```
