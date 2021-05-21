@@ -12,3 +12,4 @@ __pycache__/
 *.cache/
 *.hw/
 *.runs/
+*.ip_user_files/
