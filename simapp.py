@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import sys
+sys.path.append("../bsc-contrib/Libraries/GenC/GenCMsg")
+
+import sys
 import tkinter as tk
 from tkinter import colorchooser
 from tkinter import messagebox
