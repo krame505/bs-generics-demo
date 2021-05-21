@@ -5,7 +5,9 @@ BSCFLAGS=-p $(BSCCONTRIB)/inst/lib/Libraries/GenC/GenCRepr:$(BSCCONTRIB)/inst/li
 all: rtl sim ffi
 
 contrib:
-	make -C $(BSCCONTRIB)/Libraries/GenC install
+	$(MAKE) -C $(BSCCONTRIB)/Libraries/GenC install
+	$(MAKE) -C $(BSCCONTRIB)/Libraries/COBS install
+	$(MAKE) -C $(BSCCONTRIB)/Libraries/FPGA/Misc install
 
 rtl: | contrib
 	bsc $(BSCFLAGS) -u -verilog Demo.bs
