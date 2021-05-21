@@ -17,13 +17,13 @@
 
 import sys
 import time
-from demo import Client
+from demo import DemoClient
 
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
         sys.exit("Expected serial port name")
 
-    client = Client(sys.argv[1])
+    client = DemoClient(sys.argv[1])
     client.start()
 
     for b in range(0, 100, 10):

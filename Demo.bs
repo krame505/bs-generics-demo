@@ -20,9 +20,9 @@ import CShow
 import Vector
 import GetPut
 import Connectable
-import UART
+import RS232
 import COBS
-import Counter
+import SumSquares
 import RGB
 import Buttons
 
@@ -32,13 +32,42 @@ type NumButtons = 4
 interface DemoMsgs =
   -- In order of highest to lowest urgency
   -- Try changing the order and FIFO sizes
-  ctrCommands :: Rx 16 16 CounterCommand
-  sums        :: Tx 16 2 (Result (Int 32))
-  squareSums    :: Tx 16 2 (Result (Int 64))
+  ctrRequests :: Rx 16 16 CounterRequest
+  sums        :: Tx 16 2 (CounterResponse (Int 32))
+  squareSums  :: Tx 16 2 (CounterResponse (Int 64))
 
   rgbCommands :: Rx 8 8 (RGBCommand NumRGBs)
 
   buttonEvents :: Tx 8 8 (UInt (TLog NumButtons))
+
+interface Demo =
+  txData :: Get (Bit 8)
+  rxData :: Put (Bit 8)
+  rgbCommands :: Get (RGBCommand NumRGBs)
+  buttonEvents :: Put (UInt (TLog NumButtons))
+
+mkDemo :: (GenCMsg DemoMsgs rxBytes txBytes) => Module Demo
+mkDemo = module
+  writeCMsgDecls "demo" (_ :: DemoMsgs)
+
+  enc :: COBSEncoder txBytes <- mkCOBSEncoder
+  dec :: COBSDecoder rxBytes <- mkCOBSDecoder
+  msgMgr :: MsgManager DemoMsgs rxBytes txBytes <- mkMsgManager
+
+  dec.msg <-> dropSize msgMgr.rxMsg
+  msgMgr.txMsg <-> enc.msg
+
+  ctr <- mkCounter
+  toGet msgMgr.fifos.ctrRequests <-> ctr.requests
+  ctr.sum <-> toPut msgMgr.fifos.sums
+  ctr.squareSum <-> toPut msgMgr.fifos.squareSums
+
+  interface
+    txData = enc.byte
+    rxData = dec.byte
+    rgbCommands = toGet msgMgr.fifos.rgbCommands
+    buttonEvents = toPut msgMgr.fifos.buttonEvents
+
 
 interface Top =
   tx :: Bit 1 {-# always_ready, always_enabled #-}
@@ -48,39 +77,30 @@ interface Top =
   blue :: Bit NumRGBs {-# always_ready, always_enabled #-}
   buttons :: Bit NumButtons -> Action {-# always_ready, always_enabled, prefix="", arg_names = [buttons] #-}
 
+clockFreq :: Integer
+clockFreq = 100000000
+
+baud :: Integer
+baud = 115200
+
 {-# verilog mkTop #-}
 mkTop :: Module Top
-mkTop = mkTopReal
+mkTop = module
+  demo <- mkDemo
 
--- Seperated out due to the context...
-mkTopReal :: (GenCMsg DemoMsgs rxBytes txBytes) => Module Top
-mkTopReal = module
-  writeCMsgDecls "demo" (_ :: DemoMsgs)
-
-  uart <- mkUART 115200
-  enc :: COBSEncoder txBytes <- mkCOBSEncoder
-  dec :: COBSDecoder rxBytes <- mkCOBSDecoder
-  msgMgr :: MsgManager DemoMsgs rxBytes txBytes <- mkMsgManager
-
-  uart.rxData <-> dec.byte
-  dec.msg <-> dropSize msgMgr.rxMsg
-  msgMgr.txMsg <-> enc.msg
-  enc.byte <-> uart.txData
-
-  ctr <- mkCounter
-  toGet msgMgr.fifos.ctrCommands <-> ctr.command
-  ctr.sum <-> toPut msgMgr.fifos.sums
-  ctr.squareSum <-> toPut msgMgr.fifos.squareSums
+  uart :: UART 8 <- mkUART 8 NONE STOP_1 (fromInteger $ clockFreq / (baud * 16))
+  demo.txData <-> uart.rx
+  uart.tx <-> demo.rxData
 
   rgbs :: RGBControls NumRGBs <- mkRGBControls
-  toGet msgMgr.fifos.rgbCommands <-> rgbs.command
+  demo.rgbCommands <-> rgbs.command
 
   buttons :: Buttons NumButtons <- mkButtons
-  buttons.events <-> toPut msgMgr.fifos.buttonEvents
+  buttons.events <-> demo.buttonEvents
 
   interface
-    tx = uart.tx
-    rx = uart.rx
+    tx = uart.rs232.sout
+    rx = uart.rs232.sin
     red = rgbs.red
     green = rgbs.green
     blue = rgbs.blue

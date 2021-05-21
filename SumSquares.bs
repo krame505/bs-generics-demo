@@ -1,0 +1,78 @@
+-- Copyright 2021 Google LLC
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--      http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+
+package SumSquares where
+
+import CShow
+import Vector
+import FIFO
+import GetPut
+
+type Id = Bit 16 -- Try changing the size
+
+-- Try adding/reordering constructors
+data CounterCommand
+  = Num (Int 32)
+  | ResetSum
+  | ResetSquareSum
+  deriving (Bits)
+
+struct CounterRequest =
+  id :: Id
+  command :: CounterCommand
+ deriving (Bits)
+
+struct CounterResponse a =
+  id :: Id
+  val :: a
+ deriving (Bits)
+
+interface Counter =
+  requests :: Put CounterRequest
+  sum :: Get (CounterResponse (Int 32))
+  squareSum :: Get (CounterResponse (Int 64))
+
+{-# verilog mkCounter #-}
+mkCounter :: Module Counter
+mkCounter = module
+  requests <- mkFIFO
+  sums <- mkFIFO
+  squareSums <- mkFIFO
+
+  sum :: Reg (Int 32) <- mkReg 0
+  squareSum :: Reg (Int 64) <- mkReg 0
+
+  rules
+    "handle_request": when True ==> do
+      -- $display "Handling request " (cshow requests.first)
+      let newSum =
+            case requests.first.command of
+               Num n -> sum + n
+               ResetSum -> 0
+               _ -> sum
+          newSquareSum =
+            case requests.first.command of
+               Num n -> squareSum + (signExtend n) * (signExtend n)
+               ResetSquareSum -> 0
+               _ -> squareSum
+      sums.enq (CounterResponse { id = requests.first.id; val = newSum; })
+      squareSums.enq (CounterResponse { id = requests.first.id; val = newSquareSum; })
+      sum := newSum
+      squareSum := newSquareSum
+      requests.deq
+
+  interface
+    requests = toPut requests
+    sum = toGet sums
+    squareSum = toGet squareSums
