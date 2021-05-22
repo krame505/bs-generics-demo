@@ -30,6 +30,10 @@ $ git clone https://github.com/b-lang-org/bsc-contrib
 ```
 $ python3 -m pip install pyserial cffi eventfd cobs
 ```
+On some systems you may need to manually install tkinter as well
+```
+$ sudo apt install python3-tk
+```
 4. Build everything by running `make`.  This will
    * Compile the Bluespec source files and libraries
    * Generate Verilog for the top-level `mkTop` module specified in `Demo.bs`
@@ -60,8 +64,8 @@ Initialized simulated serial device at /dev/pts/44
 
 ## Running on an FPGA
 The design can also be run in hardware on an Arty A7 FPGA board.
-1. Install [Vivado](https://www.xilinx.com/products/design-tools/vivado.html).  Note that there are multiple versions available; ensure that the installed version supports Xilinx FPGAs.
-2. Create the Xilinx project _TODO: Add TCL script and instructions on how to do this_
+1. Install [Vivado and the Digilent board files](https://reference.digilentinc.com/vivado/installing-vivado/start).  Note that there are multiple versions available; ensure that the installed version supports Xilinx FPGAs.
+2. Open the `bs-generics-demo.xpr` project file in Vivado
 3. Generate a bitstream file and program the device.  A serial device corresponding to the FPGA board should appear, e.g. `/dev/ttyUSB1`
 4. Run any of the host application scripts using the serial device
 ```
