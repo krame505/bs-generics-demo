@@ -63,7 +63,7 @@ mkCounter = module
                _ -> sum
           newSquareSum =
             case requests.first.command of
-               Num n -> squareSum + (signExtend n) * (signExtend n)
+               Num n -> squareSum + signedMul n n
                ResetSquareSum -> 0
                _ -> squareSum
       sums.enq (CounterResponse { id = requests.first.id; val = newSum; })
