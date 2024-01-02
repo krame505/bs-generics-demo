@@ -16,6 +16,7 @@
 
 import sys
 sys.path.append("../bsc-contrib/Libraries/GenC/GenCMsg")
+sys.path.append("build")
 
 import sys
 import tkinter as tk

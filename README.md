@@ -64,11 +64,14 @@ Initialized simulated serial device at /dev/pts/44
 
 ## Running on an FPGA
 The design can also be run in hardware on an Arty A7 FPGA board.
-1. Install [Vivado and the Digilent board files](https://reference.digilentinc.com/vivado/installing-vivado/start).  Note that there are multiple versions available; ensure that the installed version supports Xilinx FPGAs.
-2. Open the `bs-generics-demo.xpr` project file in Vivado
-3. Generate a bitstream file and program the device.  A serial device corresponding to the FPGA board should appear, e.g. `/dev/ttyUSB1`
+1. [Install F4PGA and OpenFPGALoader](https://f4pga.readthedocs.io/en/latest/getting-started.html#toolchain-installation).
+2. Run `make bitstream` to synthesize the design into a bitstream.
+3. Run `make download` to program the device. A serial device corresponding to the FPGA board should appear, e.g. `/dev/ttyUSB1`
 4. Run any of the host application scripts using the serial device
 ```
 ./app.py /dev/ttyUSB1
+./rgb_test.py /dev/ttyUSB1
+./counter_test.py /dev/ttyUSB1
+./button_test.py /dev/ttyUSB1
 ```
 
