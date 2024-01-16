@@ -73,7 +73,7 @@ ${BUILDDIR}/${TOP}.bit: ${BUILDDIR}/${TOP}.fasm
 bitstream: ${BUILDDIR}/${TOP}.bit
 
 download: ${BUILDDIR}/${TOP}.bit
-	openFPGALoader -b ${OFL_BOARD} ${BUILDDIR}/${TOP}.bit
+	openFPGALoader -b ${OFL_BOARD} $<
 
 depends.mk: | $(BUILDDIR)
 	bluetcl -exec makedepend $(BSCFLAGS) "*.bs*" > depends.mk
@@ -83,6 +83,6 @@ depends.mk: | $(BUILDDIR)
 include depends.mk
 
 clean:
-	rm -rf *~ *.o *.so *.out .contrib .*_ffi depends.mk $(BUILDDIR) __pycache__/
+	rm -rf *~ *.o *.so *.out *.sched .contrib .*_ffi depends.mk $(BUILDDIR) __pycache__/
 
 .PHONY: all common rtl sim ffi bitstream download clean
