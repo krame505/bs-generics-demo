@@ -53,7 +53,7 @@ Initialized simulated serial device at /dev/pts/44
 
 
 ## Running on an FPGA
-The design can also be run in hardware on an Arty A7 FPGA board.
+The design can also be synthesized to run in hardware on an Arty A7 FPGA board, using the F4PGA toolchain.
 1. [Install F4PGA and OpenFPGALoader](https://f4pga.readthedocs.io/en/latest/getting-started.html#toolchain-installation).
 2. Run `make bitstream` to synthesize the design into a bitstream.
 3. Run `make download` to program the device. A serial device corresponding to the FPGA board should appear, e.g. `/dev/ttyUSB1`
@@ -65,3 +65,5 @@ The design can also be run in hardware on an Arty A7 FPGA board.
 ./button_test.py /dev/ttyUSB1
 ```
 
+Alternatively, one can use Vivado for synthesis by including the constraint file, the generated Verilog sources, and the Verilog libraries supplied by BSC
+(under `bsc/src/Verilog/`) in a new Vivado project.
