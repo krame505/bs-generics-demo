@@ -36,11 +36,8 @@ $(BUILDDIR)/%.bo: %.bs .contrib | $(BUILDDIR)
 $(BUILDDIR)/PTY.bo: PTY.bsv | $(BUILDDIR)
 	$(BSC)/inst/bin/bsc $(BSCFLAGS) -sim $<
 
-sysDemoSim.out: $(BUILDDIR)/sysDemoSim.ba pty.c
-	$(BSC)/inst/bin/bsc $(BSCFLAGS) -sim -e sysDemoSim -o sysDemoSim.out pty.c
-
-$(BUILDDIR)/demo.c $(BUILDDIR)/demo.h: $(BUILDDIR)/Demo.bo
-$(BUILDDIR)/demo_sim.c $(BUILDDIR)/demo_sim.h: $(BUILDDIR)/DemoSim.bo
+%.out: $(BUILDDIR)/%.ba pty.c
+	$(BSC)/inst/bin/bsc $(BSCFLAGS) -sim -e $* -o $@ pty.c
 
 .%_ffi: $(BUILDDIR)/%.c $(BUILDDIR)/%.h
 	cd $(BUILDDIR) && $(PYTHON) $(BSCCONTRIB)/Libraries/GenC/build_ffi.py $*
@@ -79,6 +76,7 @@ depends.mk: | $(BUILDDIR)
 	bluetcl -exec makedepend $(BSCFLAGS) "*.bs*" > depends.mk
 	for file in *.bs; do sed -n -e "s/^{-\# verilog \([[:alnum:]]\+\) \#-}/$(BUILDDIR)\/\1.v: $(BUILDDIR)\/$${file%.bs}.bo/p" $$file; done >> depends.mk
 	for file in *.bs; do sed -n -e "s/^{-\# verilog \([[:alnum:]]\+\) \#-}/$(BUILDDIR)\/\1.ba: $(BUILDDIR)\/$${file%.bs}.bo/p" $$file; done >> depends.mk
+	for file in *.bs; do sed -n -e "s/^\s\+writeCMsgDecls \"\([[:alnum:]_]\+\)\".*/$(BUILDDIR)\/\1.c $(BUILDDIR)\/\1.h: $(BUILDDIR)\/$${file%.bs}.bo/p" $$file; done >> depends.mk
 
 include depends.mk
 
